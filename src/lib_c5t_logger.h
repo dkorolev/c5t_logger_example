@@ -32,17 +32,26 @@ struct C5T_LOGGER_LogLineWriter final {
 struct C5T_LOGGER_Impl final {
   std::string const log_file_name_;
 
-  struct Inner final {
+  struct InnerLoggerImpl final {
     // Keeps { log file name, fstream }, to re-create with one-liners.
     using active_t = std::pair<std::string, std::ofstream>;
     std::unique_ptr<active_t> active;
-    ~Inner();
+    ~InnerLoggerImpl();
+
+    struct Construct final {};
+    InnerLoggerImpl(Construct, std::string s) {}
+
+    InnerLoggerImpl(InnerLoggerImpl const&) = delete;
+    InnerLoggerImpl& operator=(InnerLoggerImpl const&) = delete;
+    InnerLoggerImpl(InnerLoggerImpl&&) = delete;
+    InnerLoggerImpl& operator=(InnerLoggerImpl&&) = delete;
   };
 
-  current::WaitableAtomic<Inner> inner_;
+  current::WaitableAtomic<InnerLoggerImpl> inner_logger_;
 
   C5T_LOGGER_Impl() = delete;
-  C5T_LOGGER_Impl(std::string log_file_name) : log_file_name_(std::move(log_file_name)) {}
+  C5T_LOGGER_Impl(std::string log_file_name)
+      : log_file_name_(std::move(log_file_name)), inner_logger_(InnerLoggerImpl::Construct(), log_file_name_) {}
 
   void WriteLine(std::string const&);
 
@@ -55,16 +64,21 @@ struct C5T_LOGGER_Impl final {
 };
 
 struct C5T_LOGGER_SINGLETON_Impl final {
-  struct Inner final {
+  struct InnerSingletonImpl final {
     std::atomic_bool initialized;
     std::string base_path;
     std::unordered_map<std::string, std::unique_ptr<C5T_LOGGER_Impl>> per_file_loggers;
-    Inner() : initialized(false) {}
+    InnerSingletonImpl() : initialized(false) {}
   };
-  current::WaitableAtomic<Inner> inner_;
+  current::WaitableAtomic<InnerSingletonImpl> inner_singleton_;
   std::atomic_bool const& initialized_;
 
-  C5T_LOGGER_SINGLETON_Impl() : inner_(), initialized_(inner_.ImmutableScopedAccessor()->initialized) {}
+  C5T_LOGGER_SINGLETON_Impl()
+      : inner_singleton_(), initialized_(inner_singleton_.ImmutableScopedAccessor()->initialized) {
+  }
+
+  ~C5T_LOGGER_SINGLETON_Impl() {
+  }
 
   C5T_LOGGER_SINGLETON_Impl& InitializedSelfOrAbort();
 

@@ -23,7 +23,7 @@ C5T_LOGGER_SINGLETON_Impl& C5T_LOGGER_SINGLETON_Impl::InitializedSelfOrAbort() {
   return *this;
 }
 void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) {
-  if (!inner_.MutableUse([&](Inner& inner) {
+  if (!inner_singleton_.MutableUse([&](InnerSingletonImpl& inner) {
         if (inner.initialized) {
           return false;
         }
@@ -38,11 +38,11 @@ void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) 
 
 void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_LIST_Impl(
     std::function<void(std::string const& name, std::string const& latest_file)> cb) const {
-  inner_.ImmutableUse([&](Inner const& inner) {
-    for (auto const& [k, v] : inner.per_file_loggers) {
-      v->inner_.ImmutableUse([&](C5T_LOGGER_Impl::Inner const& inner2) {
+  inner_singleton_.ImmutableUse([&](InnerSingletonImpl const& inner) {
+    for (auto const& e : inner.per_file_loggers) {
+      e.second->inner_logger_.ImmutableUse([&](C5T_LOGGER_Impl::InnerLoggerImpl const& inner2) {
         if (inner2.active) {
-          cb(k, inner2.active->first);
+          cb(e.first, inner2.active->first);
         }
       });
     }
@@ -52,10 +52,10 @@ void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_LIST_Impl(
 void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_FIND_Impl(std::string const& key,
                                                      std::function<void(std::string const& latest_file)> cb_found,
                                                      std::function<void()> cb_notfound) const {
-  inner_.ImmutableUse([&](Inner const& inner) {
+  inner_singleton_.ImmutableUse([&](InnerSingletonImpl const& inner) {
     auto const& e = inner.per_file_loggers.find(key);
     if (e != std::end(inner.per_file_loggers)) {
-      e->second->inner_.ImmutableUse([&](C5T_LOGGER_Impl::Inner const& inner2) {
+      e->second->inner_logger_.ImmutableUse([&](C5T_LOGGER_Impl::InnerLoggerImpl const& inner2) {
         if (inner2.active) {
           cb_found(inner2.active->first);
         } else {
@@ -69,7 +69,7 @@ void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_FIND_Impl(std::string const& key,
 }
 
 C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_file_name) {
-  return InitializedSelfOrAbort().inner_.MutableUse([&](Inner& inner) -> C5T_LOGGER_Impl& {
+  return InitializedSelfOrAbort().inner_singleton_.MutableUse([&](InnerSingletonImpl& inner) -> C5T_LOGGER_Impl& {
     auto& placeholder = inner.per_file_loggers[log_file_name];
     if (!placeholder) {
       placeholder = std::make_unique<C5T_LOGGER_Impl>(current::FileSystem::JoinPath(inner.base_path, log_file_name));
@@ -89,14 +89,14 @@ constexpr static char const* const kLogFmt = "%m/%d/%Y %H:%M:%S";  // The US for
 #ifdef LOG_IMPL
 #error "`LOG_IMPL` should not be `#define`-d by this point."
 #endif
-#define LOG_IMPL(s) A->second << TS.count() << '\t' << current::FormatDateTime(TS, kLogFmt) << '\t' << s << std::endl;
+#define LOG_IMPL(s) \
+  inner.active->second << TS.count() << '\t' << current::FormatDateTime(TS, kLogFmt) << '\t' << s << std::endl;
 
 void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
   auto const TS = current::time::Now();
   auto const ts = current::FormatDateTime(TS, "-%Y%m%d-%H");
   auto const fn = log_file_name_ + ts + ".txt";
-  inner_.MutableUse([&](Inner& inner) {
-    auto& A = inner.active;
+  inner_logger_.MutableUse([&](InnerLoggerImpl& inner) {
     bool log_starting_new = false;
     bool create_or_recreate = false;
     if (!inner.active) {
@@ -116,7 +116,8 @@ void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
       } catch (current::Exception const&) {
         // Consciously ignore exceptions here.
       }
-      inner.active = std::make_unique<Inner::active_t>(fn, std::ofstream(fn, std::fstream::app | std::fstream::ate));
+      inner.active =
+          std::make_unique<InnerLoggerImpl::active_t>(fn, std::ofstream(fn, std::fstream::app | std::fstream::ate));
       if (!renamed_file_name.empty()) {
         LOG_IMPL("the old log file was renamed to " << renamed_file_name);
       }
@@ -128,10 +129,10 @@ void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
   });
 }
 
-C5T_LOGGER_Impl::Inner::~Inner() {
+C5T_LOGGER_Impl::InnerLoggerImpl::~InnerLoggerImpl() {
   if (active && active->second) {
     auto const TS = current::time::Now();
-    auto& A = active;
+    auto const& inner = *this;
     LOG_IMPL("gracefully closing this log file");
   }
 }
