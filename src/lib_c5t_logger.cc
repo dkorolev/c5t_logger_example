@@ -49,7 +49,7 @@ C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_fi
 
 C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name) { return C5T_LOGGER_SINGLETON_IMPL()[name]; }
 
-constexpr static char const* const kLogFmt = "%Y/%m/%d-%H:%M:%S";
+constexpr static char const* const kLogFmt = "%Y-%m-%d %H:%M:%S";
 
 #ifdef LOG_IMPL
 #error "`LOG_IMPL` should not be `#define`-d by this point."
