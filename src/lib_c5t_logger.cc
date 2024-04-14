@@ -47,6 +47,25 @@ void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_LIST_Impl(
   });
 }
 
+void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_FIND_Impl(std::string const& key,
+                                                     std::function<void(std::string const& latest_file)> cb_found,
+                                                     std::function<void()> cb_notfound) const {
+  inner_.ImmutableUse([&](Inner const& inner) {
+    auto const& e = inner.per_file_loggers.find(key);
+    if (e != std::end(inner.per_file_loggers)) {
+      e->second->inner_.ImmutableUse([&](C5T_LOGGER_Impl::Inner const& inner2) {
+        if (inner2.active) {
+          cb_found(inner2.active->first);
+        } else {
+          cb_notfound();
+        }
+      });
+    } else {
+      cb_notfound();
+    }
+  });
+}
+
 C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_file_name) {
   return InitializedSelfOrAbort().inner_.MutableUse([&](Inner& inner) -> C5T_LOGGER_Impl& {
     auto& placeholder = inner.per_file_loggers[log_file_name];
@@ -72,7 +91,8 @@ constexpr static char const* const kLogFmt = "%m/%d/%Y %H:%M:%S";  // The US for
 
 void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
   auto const TS = current::time::Now();
-  auto const fn = log_file_name_ + current::FormatDateTime(TS, "-%Y%m%d-%H") + ".txt";
+  auto const ts = current::FormatDateTime(TS, "-%Y%m%d-%H");
+  auto const fn = log_file_name_ + ts + ".txt";
   inner_.MutableUse([&](Inner& inner) {
     auto& A = inner.active;
     bool log_starting_new = false;
@@ -88,7 +108,7 @@ void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
       std::string renamed_file_name;
       try {
         if (current::FileSystem::GetFileSize(fn)) {
-          renamed_file_name = fn + "." + current::ToString(TS.count());
+          renamed_file_name = fn + ts + '.' + current::ToString(TS.count()) + ".txt";
           current::FileSystem::RenameFile(fn, renamed_file_name);
         }
       } catch (current::Exception const&) {
