@@ -46,7 +46,11 @@ C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_fi
 
 C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name) { return C5T_LOGGER_SINGLETON_IMPL()[name]; }
 
-constexpr static char const* const kLogFmt = "%Y-%m-%d %H:%M:%S";
+#if 1  // NOTE(dkorolev): I've tested this with Google Sheets by adding a chart. This date & time format works natively!
+constexpr static char const* const kLogFmt = "%Y/%m/%d %H:%M:%S";  // The format that makes sense.
+#else
+constexpr static char const* const kLogFmt = "%m/%d/%Y %H:%M:%S";  // The US format.
+#endif
 
 #ifdef LOG_IMPL
 #error "`LOG_IMPL` should not be `#define`-d by this point."
