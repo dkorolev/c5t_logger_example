@@ -49,34 +49,32 @@ C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_fi
 
 C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name) { return C5T_LOGGER_SINGLETON_IMPL()[name]; }
 
-void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
-  auto const now = current::time::Now();
-  auto const fn = log_file_name_ + current::FormatDateTime(now, "-%Y%m%d-%H");
-  inner_.MutableUse([&](Inner& inner) {
+constexpr static char const* const kLogFmt = "%Y/%m/%d-%H:%M:%S";
+
 #ifdef LOG_IMPL
 #error "`LOG_IMPL` should not be `#define`-d by this point."
 #endif
-#define LOG_IMPL(s)                                                                                             \
-  inner.active->second << now.count() << '\t' << current::FormatDateTime(now, "%Y/%m/%d-%H:%M:%S") << '\t' << s \
-                       << std::endl;
+#define LOG_IMPL(s) A->second << TS.count() << '\t' << current::FormatDateTime(TS, kLogFmt) << '\t' << s << std::endl;
+
+void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
+  auto const TS = current::time::Now();
+  auto const fn = log_file_name_ + current::FormatDateTime(TS, "-%Y%m%d-%H");
+  inner_.MutableUse([&](Inner& inner) {
+    auto& A = inner.active;
     bool log_starting_new = false;
-    bool log_moving_on = false;
     bool create_or_recreate = false;
     if (!inner.active) {
       log_starting_new = true;
       create_or_recreate = true;
     } else if (inner.active->first != fn) {
-      log_moving_on = true;
-      create_or_recreate = true;
-    }
-    if (log_moving_on) {
       LOG_IMPL("moving on to " << fn);
+      create_or_recreate = true;
     }
     if (create_or_recreate) {
       std::string renamed_file_name;
       try {
         if (current::FileSystem::GetFileSize(fn)) {
-          renamed_file_name = fn + "." + current::ToString(now.count());
+          renamed_file_name = fn + "." + current::ToString(TS.count());
           current::FileSystem::RenameFile(fn, renamed_file_name);
         }
       } catch (current::Exception const&) {
@@ -88,10 +86,18 @@ void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
       }
     }
     if (log_starting_new) {
-      LOG_IMPL("started the new log file")
+      LOG_IMPL("started a new log file")
     }
-    inner.active->second << now.count() << '\t' << current::FormatDateTime(now, "%Y/%m/%d-%H:%M:%S") << '\t' << s
-                         << std::endl;
-#undef LOG_IMPL
+    LOG_IMPL(s);
   });
 }
+
+C5T_LOGGER_Impl::Inner::~Inner() {
+  if (active && active->second) {
+    auto const TS = current::time::Now();
+    auto& A = active;
+    LOG_IMPL("gracefully closing this log file");
+  }
+}
+
+#undef LOG_IMPL

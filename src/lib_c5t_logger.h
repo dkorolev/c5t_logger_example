@@ -32,8 +32,10 @@ struct C5T_LOGGER_Impl final {
   std::string const log_file_name_;
 
   struct Inner final {
-    using active_t = std::pair<std::string, std::ofstream>;  // { log file suffix, fstream }.
-    std::unique_ptr<active_t> active;                        // { log file suffix, fstream }.
+    // Keeps { log file name, fstream }, to re-create with one-liners.
+    using active_t = std::pair<std::string, std::ofstream>;
+    std::unique_ptr<active_t> active;
+    ~Inner();
   };
 
   current::WaitableAtomic<Inner> inner_;

@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   argv0_path.pop_back();
   C5T_LOGGER_ACTIVATE(current::strings::Join(argv0_path, current::FileSystem::GetPathSeparator()));
   C5T_LOGGER("foo.log") << "this is foo, starting";
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   C5T_LOGGER("foo.log") << "this is foo, done";
   return 0;
 }
