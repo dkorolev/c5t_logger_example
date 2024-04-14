@@ -1,5 +1,7 @@
 #include "lib_c5t_logger.h"
 
+#include <functional>
+
 #include "bricks/exception.h"
 #include "bricks/time/chrono.h"
 #include "bricks/file/file.h"
