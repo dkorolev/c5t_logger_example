@@ -108,7 +108,7 @@ void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
       std::string renamed_file_name;
       try {
         if (current::FileSystem::GetFileSize(fn)) {
-          renamed_file_name = fn + ts + '.' + current::ToString(TS.count()) + ".txt";
+          renamed_file_name = log_file_name_ + ts + '.' + current::ToString(TS.count()) + ".txt";
           current::FileSystem::RenameFile(fn, renamed_file_name);
         }
       } catch (current::Exception const&) {
