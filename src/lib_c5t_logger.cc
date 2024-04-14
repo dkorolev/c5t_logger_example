@@ -59,7 +59,7 @@ constexpr static char const* const kLogFmt = "%m/%d/%Y %H:%M:%S";  // The US for
 
 void C5T_LOGGER_Impl::WriteLine(std::string const& s) {
   auto const TS = current::time::Now();
-  auto const fn = log_file_name_ + current::FormatDateTime(TS, "-%Y%m%d-%H");
+  auto const fn = log_file_name_ + current::FormatDateTime(TS, "-%Y%m%d-%H") + ".txt";
   inner_.MutableUse([&](Inner& inner) {
     auto& A = inner.active;
     bool log_starting_new = false;
