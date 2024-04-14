@@ -68,6 +68,7 @@ struct C5T_LOGGER_SINGLETON_Impl final {
   C5T_LOGGER_SINGLETON_Impl& InitializedSelfOrAbort();
 
   void C5T_LOGGER_ACTIVATE_IMPL(std::string base_path);
+  void C5T_LOGGER_LIST_Impl(std::function<void(std::string const& name, std::string const& latest_file)> cb) const;
 
   C5T_LOGGER_Impl& operator[](std::string const& log_file_name);
 };
@@ -75,6 +76,7 @@ struct C5T_LOGGER_SINGLETON_Impl final {
 #define C5T_LOGGER_SINGLETON_RAW_IMPL() current::Singleton<C5T_LOGGER_SINGLETON_Impl>()
 #define C5T_LOGGER_SINGLETON_IMPL() current::Singleton<C5T_LOGGER_SINGLETON_Impl>().InitializedSelfOrAbort()
 #define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_SINGLETON_RAW_IMPL().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
+#define C5T_LOGGER_LIST(cb) C5T_LOGGER_SINGLETON_IMPL().C5T_LOGGER_LIST_Impl(cb)
 
 C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name);
 

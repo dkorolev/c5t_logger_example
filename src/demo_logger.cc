@@ -15,6 +15,9 @@ int main(int argc, char** argv) {
   argv0_path.pop_back();
   C5T_LOGGER_ACTIVATE(current::strings::Join(argv0_path, current::FileSystem::GetPathSeparator()));
   C5T_LOGGER("foo.log") << "this is foo, starting";
+  C5T_LOGGER_LIST([](std::string const& name, std::string const& filename) {
+    std::cerr << name << " => " << filename << std::endl;
+  });
   for (size_t i = 0; i < 15; ++i) {
     C5T_LOGGER("chart.log") << i * i;
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));

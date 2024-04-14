@@ -34,6 +34,19 @@ void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) 
   }
 }
 
+void C5T_LOGGER_SINGLETON_Impl::C5T_LOGGER_LIST_Impl(
+    std::function<void(std::string const& name, std::string const& latest_file)> cb) const {
+  inner_.ImmutableUse([&](Inner const& inner) {
+    for (auto const& [k, v] : inner.per_file_loggers) {
+      v->inner_.ImmutableUse([&](C5T_LOGGER_Impl::Inner const& inner2) {
+        if (inner2.active) {
+          cb(k, inner2.active->first);
+        }
+      });
+    }
+  });
+}
+
 C5T_LOGGER_Impl& C5T_LOGGER_SINGLETON_Impl::operator[](std::string const& log_file_name) {
   return InitializedSelfOrAbort().inner_.MutableUse([&](Inner& inner) -> C5T_LOGGER_Impl& {
     auto& placeholder = inner.per_file_loggers[log_file_name];
