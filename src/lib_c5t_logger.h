@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <fstream>
 #include <sstream>
 
 #include "bricks/sync/waitable_atomic.h"
