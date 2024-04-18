@@ -89,7 +89,7 @@ inline void C5T_LOGGER_USE(current::logger::C5T_LOGGER_SINGLETON_Interface& impl
 
 #define C5T_LOGGER_LIST(cb) current::logger::C5T_LOGGER_INSTANCE().C5T_LOGGER_LIST_Impl(cb)
 #define C5T_LOGGER_FIND(key, cb_found, cb_notfound) \
-  C5T_LOGGER_INSTANCE().C5T_LOGGER_FIND_Impl(key, cb_found, cb_notfound)
+  current::logger::C5T_LOGGER_INSTANCE().C5T_LOGGER_FIND_Impl(key, cb_found, cb_notfound)
 
 // NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
 inline current::logger::C5T_LOGGER_Interface& C5T_LOGGER(std::string const& name) {
