@@ -8,6 +8,8 @@
 
 #include "bricks/sync/waitable_atomic.h"
 
+namespace current::logger::impl {
+
 #if 1  // NOTE(dkorolev): I've tested this with Google Sheets by adding a chart. This date & time format works natively!
 constexpr static char const* const kLogFmt = "%Y/%m/%d %H:%M:%S";  // The format that makes sense.
 #else
@@ -194,7 +196,10 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
   }
 };
 
+}  // namespace current::logger::impl
+
 // NOTE(dkorolev): This method is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
 C5T_LOGGER_SINGLETON_Interface& Get_C5T_LOGGER_SINGLETON_Impl_Instance() {
-  return current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(current::Singleton<C5T_LOGGER_SINGLETON_Impl>());
+  return current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(
+      current::Singleton<current::logger::impl::C5T_LOGGER_SINGLETON_Impl>());
 }
