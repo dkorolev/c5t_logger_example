@@ -74,11 +74,9 @@ struct C5T_LOGGER_SINGLETON_Impl final {
   std::atomic_bool const& initialized_;
 
   C5T_LOGGER_SINGLETON_Impl()
-      : inner_singleton_(), initialized_(inner_singleton_.ImmutableScopedAccessor()->initialized) {
-  }
+      : inner_singleton_(), initialized_(inner_singleton_.ImmutableScopedAccessor()->initialized) {}
 
-  ~C5T_LOGGER_SINGLETON_Impl() {
-  }
+  ~C5T_LOGGER_SINGLETON_Impl() {}
 
   C5T_LOGGER_SINGLETON_Impl& InitializedSelfOrAbort();
 
