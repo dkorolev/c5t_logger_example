@@ -5,8 +5,8 @@
 
 int cnt = 0;  // Will increment twice!
 
-void LogSomethingFromDLib(C5T_LOGGER_SINGLETON_Interface& impl) {
-  C5T_LOGGER_USE_PROVIDED(impl);
+void LogSomethingFromDLib(C5T_LOGGER_SINGLETON_Interface& c5t_logger) {
+  C5T_LOGGER_USE(c5t_logger);
   std::cout << "bar starting\n";
   C5T_LOGGER("bar.log") << "this is bar, index = " << ++cnt;
   std::cout << "bar done\n";

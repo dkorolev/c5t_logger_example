@@ -74,7 +74,9 @@ C5T_LOGGER_SINGLETON_Interface& Get_C5T_LOGGER_SINGLETON_Impl_Instance();
 // NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
 #define C5T_LOGGER_CREATE_SINGLETON() Get_C5T_LOGGER_SINGLETON_Impl_Instance()
 
-#define C5T_LOGGER_USE_PROVIDED(impl) current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(impl)
+inline void C5T_LOGGER_USE(C5T_LOGGER_SINGLETON_Interface& impl) {
+  current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(impl);
+}
 
 #define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_CREATE_SINGLETON().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
 
