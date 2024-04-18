@@ -2,4 +2,4 @@
 
 #include <iostream>
 
-void LogSomethingFromDLib(IHasLoggerInterface const*) { std::cout << "foo!\n"; }
+void LogSomethingFromDLib(IUnknown const*) { std::cout << "foo!\n"; }

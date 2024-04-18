@@ -4,7 +4,13 @@ namespace current::logger {
 struct C5T_LOGGER_SINGLETON_Interface;
 };
 
-class IHasLoggerInterface {
+// TODO: Move IUnknown somewhere up.
+struct IUnknown {
+ protected:
+  virtual ~IUnknown() = default;
+};
+
+class IHasLoggerInterface : public virtual IUnknown {
  protected:
   ~IHasLoggerInterface() = default;
 
@@ -12,4 +18,4 @@ class IHasLoggerInterface {
   virtual current::logger::C5T_LOGGER_SINGLETON_Interface& Logger() const = 0;
 };
 
-extern "C" void LogSomethingFromDLib(IHasLoggerInterface const*);
+extern "C" void LogSomethingFromDLib(IUnknown const*);

@@ -14,9 +14,10 @@ struct Whatever final {
   int blah;
 };
 
-struct IHasWhateverInterface {
+struct IHasWhateverInterface : public virtual IUnknown {
  protected:
   IHasWhateverInterface() = default;
+
  public:
   virtual Whatever* GetWhatever() = 0;
 };
@@ -42,15 +43,13 @@ int main(int argc, char** argv) {
     current::logger::C5T_LOGGER_SINGLETON_Interface& Logger() const override {
       return current::logger::C5T_LOGGER_INSTANCE();
     }
-    Whatever* GetWhatever() override {
-      return nullptr;
-    }
+    Whatever* GetWhatever() override { return nullptr; }
   };
   LoggerProvider lp;
 
   for (std::string s : {"foo", "bar", "foo", "bar", "meh"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
-    auto pf = dl.template Get<void (*)(IHasLoggerInterface const*)>("LogSomethingFromDLib");
+    auto pf = dl.template Get<void (*)(void const*)>("LogSomethingFromDLib");
     if (pf) {
       (*pf)(&lp);
     }
