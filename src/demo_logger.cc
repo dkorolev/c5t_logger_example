@@ -10,6 +10,17 @@
 #include "bricks/strings/split.h"
 #include "bricks/system/syscalls.h"
 
+struct Whatever final {
+  int blah;
+};
+
+struct IHasWhateverInterface {
+ protected:
+  IHasWhateverInterface() = default;
+ public:
+  virtual Whatever* GetWhatever() = 0;
+};
+
 int main(int argc, char** argv) {
   ParseDFlags(&argc, &argv);
   std::string const bin_path = []() {
@@ -27,9 +38,12 @@ int main(int argc, char** argv) {
     std::cerr << name << " => " << filename << std::endl;
   });
 
-  struct LoggerProvider final : IHasLoggerInterface {
+  struct LoggerProvider final : IHasWhateverInterface, IHasLoggerInterface {
     current::logger::C5T_LOGGER_SINGLETON_Interface& Logger() const override {
       return current::logger::C5T_LOGGER_INSTANCE();
+    }
+    Whatever* GetWhatever() override {
+      return nullptr;
     }
   };
   LoggerProvider lp;
