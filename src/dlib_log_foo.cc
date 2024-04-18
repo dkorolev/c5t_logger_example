@@ -2,6 +2,4 @@
 
 #include <iostream>
 
-void LogSomethingFromDLib(C5T_LOGGER_SINGLETON_Impl&) {
-  std::cout << "foo!\n";
-}
+void LogSomethingFromDLib(C5T_LOGGER_SINGLETON_Interface&) { std::cout << "foo!\n"; }

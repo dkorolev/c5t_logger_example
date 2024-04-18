@@ -21,18 +21,19 @@ int main(int argc, char** argv) {
 
   C5T_LOGGER_ACTIVATE(bin_path);
 
+  C5T_LOGGER("demo.log") << "this is the demo, starting";
+  C5T_LOGGER_LIST([](std::string const& name, std::string const& filename) {
+    std::cerr << name << " => " << filename << std::endl;
+  });
+
   for (std::string s : {"foo", "bar", "foo", "bar"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
-    auto pf = dl.template Get<void (*)(C5T_LOGGER_SINGLETON_Impl&)>("LogSomethingFromDLib");
+    auto pf = dl.template Get<void (*)(C5T_LOGGER_SINGLETON_Interface&)>("LogSomethingFromDLib");
     if (pf) {
       (*pf)(C5T_LOGGER_INSTANCE());
     }
   }
 
-  C5T_LOGGER("demo.log") << "this is the demo, starting";
-  C5T_LOGGER_LIST([](std::string const& name, std::string const& filename) {
-    std::cerr << name << " => " << filename << std::endl;
-  });
   // This test that the output date format is friendly with Google Spreadsheets =)
   constexpr size_t N = 15;
   for (size_t i = 0; i < 15; ++i) {

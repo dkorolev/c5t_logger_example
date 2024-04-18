@@ -1,101 +1,66 @@
 #pragma once
 
-#include <atomic>
 #include <memory>
-#include <fstream>
-#include <sstream>
+#include <functional>
 
-#include "bricks/sync/waitable_atomic.h"
 #include "bricks/util/singleton.h"  // IWYU pragma: keep
 
-struct C5T_LOGGER_Impl;
+struct C5T_LOGGER_LogLineWriterInterface {
+  virtual ~C5T_LOGGER_LogLineWriterInterface() = default;
+  virtual std::ostream& GetOStream() = 0;
+};
 
-struct C5T_LOGGER_LogLineWriter final {
-  C5T_LOGGER_Impl* self_;
-  bool to_file_;
-  std::ostringstream oss_;
+class C5T_LOGGER_LogLineWriter final {
+ private:
+  std::unique_ptr<C5T_LOGGER_LogLineWriterInterface> pimpl_;
 
+ public:
   C5T_LOGGER_LogLineWriter() = delete;
-  C5T_LOGGER_LogLineWriter(C5T_LOGGER_LogLineWriter&&) = default;
-
-  explicit C5T_LOGGER_LogLineWriter(C5T_LOGGER_Impl* self, bool to_file = true) : self_(self), to_file_(to_file) {}
+  C5T_LOGGER_LogLineWriter(std::unique_ptr<C5T_LOGGER_LogLineWriterInterface> pimpl) : pimpl_(std::move(pimpl)) {}
 
   template <typename T>
   C5T_LOGGER_LogLineWriter& operator<<(T&& e) {
-    oss_ << std::forward<T>(e);
+    pimpl_->GetOStream() << std::forward<T>(e);
     return *this;
   }
-
-  ~C5T_LOGGER_LogLineWriter();
 };
 
-struct C5T_LOGGER_Impl final {
-  std::string const log_file_name_;
+struct C5T_LOGGER_Interface {
+  virtual ~C5T_LOGGER_Interface() = default;
 
-  struct InnerLoggerImpl final {
-    // Keeps { log file name, fstream }, to re-create with one-liners.
-    using active_t = std::pair<std::string, std::ofstream>;
-    std::unique_ptr<active_t> active;
-    ~InnerLoggerImpl();
-
-    struct Construct final {};
-    InnerLoggerImpl(Construct, std::string s) {}
-
-    InnerLoggerImpl(InnerLoggerImpl const&) = delete;
-    InnerLoggerImpl& operator=(InnerLoggerImpl const&) = delete;
-    InnerLoggerImpl(InnerLoggerImpl&&) = delete;
-    InnerLoggerImpl& operator=(InnerLoggerImpl&&) = delete;
-  };
-
-  current::WaitableAtomic<InnerLoggerImpl> inner_logger_;
-
-  C5T_LOGGER_Impl() = delete;
-  C5T_LOGGER_Impl(std::string log_file_name)
-      : log_file_name_(std::move(log_file_name)), inner_logger_(InnerLoggerImpl::Construct(), log_file_name_) {}
-
-  void WriteLine(std::string const&);
+  virtual C5T_LOGGER_LogLineWriter NewLineWriter() = 0;
+  virtual void WriteLine(std::string const&) = 0;
 
   template <typename T>
   C5T_LOGGER_LogLineWriter operator<<(T&& e) {
-    C5T_LOGGER_LogLineWriter w(this);
-    w << std::forward<T>(e);
-    return w;
+    auto writer = NewLineWriter();
+    writer << std::forward<T>(e);
+    return writer;
   }
 };
 
-struct C5T_LOGGER_SINGLETON_Impl final {
-  struct InnerSingletonImpl final {
-    std::atomic_bool initialized;
-    std::string base_path;
-    std::unordered_map<std::string, std::unique_ptr<C5T_LOGGER_Impl>> per_file_loggers;
-    InnerSingletonImpl() : initialized(false) {}
-  };
-  current::WaitableAtomic<InnerSingletonImpl> inner_singleton_;
-  std::atomic_bool const& initialized_;
+struct C5T_LOGGER_SINGLETON_Interface {
+  virtual ~C5T_LOGGER_SINGLETON_Interface() = default;
 
-  C5T_LOGGER_SINGLETON_Impl()
-      : inner_singleton_(), initialized_(inner_singleton_.ImmutableScopedAccessor()->initialized) {}
+  virtual C5T_LOGGER_SINGLETON_Interface& InitializedSelfOrAbort() = 0;
 
-  ~C5T_LOGGER_SINGLETON_Impl() {}
+  virtual void C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) = 0;
+  virtual void C5T_LOGGER_LIST_Impl(
+      std::function<void(std::string const& name, std::string const& latest_file)> cb) const = 0;
+  virtual void C5T_LOGGER_FIND_Impl(std::string const& key,
+                                    std::function<void(std::string const& latest_file)> cb_found,
+                                    std::function<void()> cb_notfound) const = 0;
 
-  C5T_LOGGER_SINGLETON_Impl& InitializedSelfOrAbort();
-
-  void C5T_LOGGER_ACTIVATE_IMPL(std::string base_path);
-  void C5T_LOGGER_LIST_Impl(std::function<void(std::string const& name, std::string const& latest_file)> cb) const;
-  void C5T_LOGGER_FIND_Impl(std::string const& key,
-                            std::function<void(std::string const& latest_file)> cb_found,
-                            std::function<void()> notfound) const;
-
-  C5T_LOGGER_Impl& operator[](std::string const& log_file_name);
+  virtual C5T_LOGGER_Interface& operator[](std::string const& log_file_name) = 0;
 };
 
 struct C5T_LOGGER_SINGLETON_Holder final {
-  C5T_LOGGER_SINGLETON_Impl* ptr = nullptr;
-  C5T_LOGGER_SINGLETON_Impl& Use(C5T_LOGGER_SINGLETON_Impl& impl) {
+  C5T_LOGGER_SINGLETON_Interface* ptr = nullptr;
+  C5T_LOGGER_SINGLETON_Interface& Use(C5T_LOGGER_SINGLETON_Interface& impl) {
     ptr = &impl;
     return impl;
   }
-  C5T_LOGGER_SINGLETON_Impl& Val() {
+  C5T_LOGGER_SINGLETON_Interface& Val() {
     if (ptr == nullptr) {
       // TODO(dkorolev): Use some default one, right?
       ::abort();
@@ -104,8 +69,11 @@ struct C5T_LOGGER_SINGLETON_Holder final {
   }
 };
 
-#define C5T_LOGGER_CREATE_SINGLETON() \
-  current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(current::Singleton<C5T_LOGGER_SINGLETON_Impl>())
+C5T_LOGGER_SINGLETON_Interface& Get_C5T_LOGGER_SINGLETON_Impl_Instance();
+
+// NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
+#define C5T_LOGGER_CREATE_SINGLETON() Get_C5T_LOGGER_SINGLETON_Impl_Instance()
+
 #define C5T_LOGGER_USE_PROVIDED(impl) current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(impl)
 
 #define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_CREATE_SINGLETON().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
@@ -117,7 +85,8 @@ struct C5T_LOGGER_SINGLETON_Holder final {
 #define C5T_LOGGER_FIND(key, cb_found, cb_notfound) \
   C5T_LOGGER_INSTANCE().C5T_LOGGER_FIND_Impl(key, cb_found, cb_notfound)
 
-C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name);
+// NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
+inline C5T_LOGGER_Interface& C5T_LOGGER(std::string const& name) { return C5T_LOGGER_INSTANCE()[name]; }
 
 #if 0
 
