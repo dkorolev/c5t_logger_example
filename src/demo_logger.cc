@@ -12,19 +12,20 @@
 int main(int argc, char** argv) {
   ParseDFlags(&argc, &argv);
   std::string const bin_path = []() {
-    std::vector<std::string> argv0_path = current::strings::Split(current::Singleton<dflags::Argv0Container>().argv_0,
-                                                                  current::FileSystem::GetPathSeparator());
+    std::string const argv0 = current::Singleton<dflags::Argv0Container>().argv_0;
+    std::vector<std::string> argv0_path = current::strings::Split(argv0, current::FileSystem::GetPathSeparator());
     argv0_path.pop_back();
-    return current::strings::Join(argv0_path, current::FileSystem::GetPathSeparator());
+    std::string const res = current::strings::Join(argv0_path, current::FileSystem::GetPathSeparator());
+    return argv0[0] == current::FileSystem::GetPathSeparator() ? "/" + res : res;
   }();
 
   C5T_LOGGER_ACTIVATE(bin_path);
 
-  for (std::string s : {"foo", "bar"}) {
+  for (std::string s : {"foo", "bar", "foo", "bar"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
-    auto pf = dl.template Get<void (*)()>("LogSomethingFromDLib");
+    auto pf = dl.template Get<void (*)(C5T_LOGGER_SINGLETON_Impl&)>("LogSomethingFromDLib");
     if (pf) {
-      (*pf)();
+      (*pf)(C5T_LOGGER_INSTANCE());
     }
   }
 

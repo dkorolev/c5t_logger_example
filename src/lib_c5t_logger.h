@@ -89,12 +89,33 @@ struct C5T_LOGGER_SINGLETON_Impl final {
   C5T_LOGGER_Impl& operator[](std::string const& log_file_name);
 };
 
-#define C5T_LOGGER_SINGLETON_RAW_IMPL() current::Singleton<C5T_LOGGER_SINGLETON_Impl>()
-#define C5T_LOGGER_SINGLETON_IMPL() current::Singleton<C5T_LOGGER_SINGLETON_Impl>().InitializedSelfOrAbort()
-#define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_SINGLETON_RAW_IMPL().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
-#define C5T_LOGGER_LIST(cb) C5T_LOGGER_SINGLETON_IMPL().C5T_LOGGER_LIST_Impl(cb)
+struct C5T_LOGGER_SINGLETON_Holder final {
+  C5T_LOGGER_SINGLETON_Impl* ptr = nullptr;
+  C5T_LOGGER_SINGLETON_Impl& Use(C5T_LOGGER_SINGLETON_Impl& impl) {
+    ptr = &impl;
+    return impl;
+  }
+  C5T_LOGGER_SINGLETON_Impl& Val() {
+    if (ptr == nullptr) {
+      // TODO(dkorolev): Use some default one, right?
+      ::abort();
+    }
+    return *ptr;
+  }
+};
+
+#define C5T_LOGGER_CREATE_SINGLETON() \
+  current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(current::Singleton<C5T_LOGGER_SINGLETON_Impl>())
+#define C5T_LOGGER_USE_PROVIDED(impl) current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(impl)
+
+#define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_CREATE_SINGLETON().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
+
+#define C5T_LOGGER_RAW_INSTANCE() current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Val()
+
+#define C5T_LOGGER_INSTANCE() C5T_LOGGER_RAW_INSTANCE().InitializedSelfOrAbort()
+#define C5T_LOGGER_LIST(cb) C5T_LOGGER_INSTANCE().C5T_LOGGER_LIST_Impl(cb)
 #define C5T_LOGGER_FIND(key, cb_found, cb_notfound) \
-  C5T_LOGGER_SINGLETON_IMPL().C5T_LOGGER_FIND_Impl(key, cb_found, cb_notfound)
+  C5T_LOGGER_INSTANCE().C5T_LOGGER_FIND_Impl(key, cb_found, cb_notfound)
 
 C5T_LOGGER_Impl& C5T_LOGGER(std::string const& name);
 
