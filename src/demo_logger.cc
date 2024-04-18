@@ -28,9 +28,9 @@ int main(int argc, char** argv) {
 
   for (std::string s : {"foo", "bar", "foo", "bar"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
-    auto pf = dl.template Get<void (*)(C5T_LOGGER_SINGLETON_Interface&)>("LogSomethingFromDLib");
+    auto pf = dl.template Get<void (*)(current::logger::C5T_LOGGER_SINGLETON_Interface&)>("LogSomethingFromDLib");
     if (pf) {
-      (*pf)(C5T_LOGGER_INSTANCE());
+      (*pf)(current::logger::C5T_LOGGER_INSTANCE());
     }
   }
 

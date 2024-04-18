@@ -199,7 +199,7 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
 }  // namespace current::logger::impl
 
 // NOTE(dkorolev): This method is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
-C5T_LOGGER_SINGLETON_Interface& Get_C5T_LOGGER_SINGLETON_Impl_Instance() {
-  return current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Use(
+current::logger::C5T_LOGGER_SINGLETON_Interface& C5T_LOGGER_CREATE_SINGLETON() {
+  return current::Singleton<current::logger::C5T_LOGGER_SINGLETON_Holder>().Use(
       current::Singleton<current::logger::impl::C5T_LOGGER_SINGLETON_Impl>());
 }
