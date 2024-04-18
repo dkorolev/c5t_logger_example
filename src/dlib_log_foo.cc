@@ -2,4 +2,4 @@
 
 #include <iostream>
 
-void LogSomethingFromDLib(current::logger::C5T_LOGGER_SINGLETON_Interface&) { std::cout << "foo!\n"; }
+void LogSomethingFromDLib(IHasLoggerInterface const*) { std::cout << "foo!\n"; }

@@ -2,6 +2,7 @@
 #include <chrono>
 
 #include "lib_c5t_logger.h"
+#include "dlib_log_something.h"
 
 #include "bricks/dflags/dflags.h"
 #include "bricks/file/file.h"
@@ -26,11 +27,18 @@ int main(int argc, char** argv) {
     std::cerr << name << " => " << filename << std::endl;
   });
 
+  struct LoggerProvider final : IHasLoggerInterface {
+    current::logger::C5T_LOGGER_SINGLETON_Interface& Logger() const override {
+      return current::logger::C5T_LOGGER_INSTANCE();
+    }
+  };
+  LoggerProvider lp;
+
   for (std::string s : {"foo", "bar", "foo", "bar"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
-    auto pf = dl.template Get<void (*)(current::logger::C5T_LOGGER_SINGLETON_Interface&)>("LogSomethingFromDLib");
+    auto pf = dl.template Get<void (*)(IHasLoggerInterface const*)>("LogSomethingFromDLib");
     if (pf) {
-      (*pf)(current::logger::C5T_LOGGER_INSTANCE());
+      (*pf)(&lp);
     }
   }
 
