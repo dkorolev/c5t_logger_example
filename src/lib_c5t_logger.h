@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>  // IWYU pragma: keep
 #include <memory>
 #include <functional>
 

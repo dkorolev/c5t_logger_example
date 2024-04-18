@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   };
   LoggerProvider lp;
 
-  for (std::string s : {"foo", "bar", "foo", "bar"}) {
+  for (std::string s : {"foo", "bar", "foo", "bar", "meh"}) {
     auto dl = current::bricks::system::DynamicLibrary::CrossPlatform(bin_path + "/libdlib_log_" + s);
     auto pf = dl.template Get<void (*)(IHasLoggerInterface const*)>("LogSomethingFromDLib");
     if (pf) {
