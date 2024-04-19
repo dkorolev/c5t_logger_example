@@ -2,4 +2,4 @@
 
 #include <iostream>
 
-void LogSomethingFromDLib(IUnknown const*) { std::cout << "foo!\n"; }
+void LogSomethingFromDLib(DLibGeneric&) { std::cout << "foo!\n"; }

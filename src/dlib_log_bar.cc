@@ -5,14 +5,16 @@
 
 int cnt = 0;  // Will increment twice!
 
-// TODO: Move `IHasLoggerInterface` into the logger header!
-void LogSomethingFromDLib(IUnknown const* interfaces) {
-  if (auto ilogger = dynamic_cast<IHasLoggerInterface const*>(interfaces)) {
-    C5T_LOGGER_USE(ilogger->Logger());
-    std::cout << "bar starting\n";
-    C5T_LOGGER("bar.log") << "this is bar, index = " << ++cnt;
-    std::cout << "bar done\n";
-  } else {
+void LogSomethingFromDLib(DLibGeneric& interfaces) {
+  if (!interfaces.Use<IHasLoggerInterface>(
+          [](IHasLoggerInterface& yes) {
+            C5T_LOGGER_USE(yes.Logger());
+            std::cout << "bar starting\n";
+            C5T_LOGGER("bar.log") << "this is bar, index = " << ++cnt;
+            std::cout << "bar done\n";
+            return true;
+          },
+          []() { return false; })) {
     std::cout << "no IHasLoggerInterface" << std::endl;
   }
 }

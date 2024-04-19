@@ -1,10 +1,12 @@
 #pragma once
 
-#include <functional>
+// Usage:
+// 1) Create an interface provider as `class MyInterface : public virtual DLibGeneric`.
+// 2) Have the `dlib`-exposed function be some `extern "C" void MyDLibExternalFunction(DLibGeneric& dlib);`
+// 3) In that function, `dlib.Use<MyInterface>(...)`, see the `demo_*` in this repo for details.
+// 4) Call it with an instance of your `MyInterface`, see the `demo_*` in this repo for details.
 
-namespace current::logger {
-struct C5T_LOGGER_SINGLETON_Interface;
-};
+#include <functional>
 
 struct DLibGeneric {
  protected:
@@ -23,10 +25,3 @@ struct DLibGeneric {
     }
   }
 };
-
-class IHasLoggerInterface : public virtual DLibGeneric {
- public:
-  virtual current::logger::C5T_LOGGER_SINGLETON_Interface& Logger() const = 0;
-};
-
-extern "C" void LogSomethingFromDLib(DLibGeneric&);

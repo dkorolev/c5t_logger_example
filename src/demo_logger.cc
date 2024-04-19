@@ -14,7 +14,7 @@ struct Whatever final {
   int blah;
 };
 
-struct IHasWhateverInterface : public virtual IUnknown {
+struct IHasWhateverInterface : public virtual DLibGeneric {
  protected:
   IHasWhateverInterface() = default;
 
