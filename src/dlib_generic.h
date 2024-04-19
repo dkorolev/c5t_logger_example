@@ -3,8 +3,8 @@
 // Usage:
 // 1) Create an interface provider as `class MyInterface : public virtual DLibGeneric`.
 // 2) Have the `dlib`-exposed function be some `extern "C" void MyDLibExternalFunction(DLibGeneric& dlib);`
-// 3) In that function, `dlib.Use<MyInterface>(...)`, see the `demo_*` in this repo for details.
-// 4) Call it with an instance of your `MyInterface`, see the `demo_*` in this repo for details.
+// 3) In that function, `dlib.Use<MyInterface>(...)`, see the `demo_*` in (some) C5T repo for details.
+// 4) Call it with an instance of your `MyInterface`, see the `demo_*` in (some) C5T repo for details.
 
 #include <functional>
 
