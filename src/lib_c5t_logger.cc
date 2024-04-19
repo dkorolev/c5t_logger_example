@@ -8,6 +8,9 @@
 
 #include "bricks/sync/waitable_atomic.h"
 
+#include "typesystem/optional.h"
+#include "typesystem/helpers.h"
+
 namespace current::logger::impl {
 
 #if 1  // NOTE(dkorolev): I've tested this with Google Sheets by adding a chart. This date & time format works natively!
@@ -44,8 +47,10 @@ struct C5T_LOGGER_LogLineWriterImpl final : C5T_LOGGER_LogLineWriterInterface {
 #define LOG_IMPL(s) \
   inner.active->second << TS.count() << '\t' << current::FormatDateTime(TS, kLogFmt) << '\t' << s << std::endl;
 
+struct C5T_LOGGER_Impl_Stdout final {};
+
 struct C5T_LOGGER_Impl final : C5T_LOGGER_Interface {
-  std::string const log_file_name_;
+  Optional<std::string> const log_file_name_;
 
   struct InnerLoggerImpl final {
     // Keeps { log file name, fstream }, to re-create with one-liners.
@@ -60,7 +65,10 @@ struct C5T_LOGGER_Impl final : C5T_LOGGER_Interface {
     }
 
     struct Construct final {};
-    InnerLoggerImpl(Construct, std::string s) {}
+    explicit InnerLoggerImpl(Construct, std::string) {}
+
+    struct ConstructForStdout final {};
+    explicit InnerLoggerImpl(ConstructForStdout) {}
 
     InnerLoggerImpl(InnerLoggerImpl const&) = delete;
     InnerLoggerImpl& operator=(InnerLoggerImpl const&) = delete;
@@ -72,16 +80,17 @@ struct C5T_LOGGER_Impl final : C5T_LOGGER_Interface {
 
   C5T_LOGGER_Impl() = delete;
   C5T_LOGGER_Impl(std::string log_file_name)
-      : log_file_name_(std::move(log_file_name)), inner_logger_(InnerLoggerImpl::Construct(), log_file_name_) {}
+      : log_file_name_(std::move(log_file_name)), inner_logger_(InnerLoggerImpl::Construct(), Value(log_file_name_)) {}
+  C5T_LOGGER_Impl(C5T_LOGGER_Impl_Stdout) : inner_logger_(InnerLoggerImpl::ConstructForStdout()) {}
 
   C5T_LOGGER_LogLineWriter NewLineWriter() override {
     return C5T_LOGGER_LogLineWriter(std::make_unique<C5T_LOGGER_LogLineWriterImpl>(this));
   }
 
-  virtual void WriteLine(std::string const& s) override {
+  void WriteLineToFile(std::string const& s, std::string const& log_file_name) {
     auto const TS = current::time::Now();
     auto const ts = current::FormatDateTime(TS, "-%Y%m%d-%H");
-    auto const fn = log_file_name_ + ts + ".txt";
+    auto const fn = log_file_name + ts + ".txt";
     inner_logger_.MutableUse([&](InnerLoggerImpl& inner) {
       bool log_starting_new = false;
       bool create_or_recreate = false;
@@ -96,7 +105,7 @@ struct C5T_LOGGER_Impl final : C5T_LOGGER_Interface {
         std::string renamed_file_name;
         try {
           if (current::FileSystem::GetFileSize(fn)) {
-            renamed_file_name = log_file_name_ + ts + '.' + current::ToString(TS.count()) + ".txt";
+            renamed_file_name = log_file_name + ts + '.' + current::ToString(TS.count()) + ".txt";
             current::FileSystem::RenameFile(fn, renamed_file_name);
           }
         } catch (current::Exception const&) {
@@ -113,14 +122,29 @@ struct C5T_LOGGER_Impl final : C5T_LOGGER_Interface {
       }
       LOG_IMPL(s);
     });
-#undef LOG_IMPL
   }
+  virtual void WriteLine(std::string const& s) override {
+    if (Exists(log_file_name_)) {
+      WriteLineToFile(s, Value(log_file_name_));
+    } else {
+      struct InjectedInner {
+        struct InjectedActive {
+          std::ostream& second = std::cout;
+          InjectedActive* operator->() { return this; }
+        } active;
+      } inner;
+      auto const TS = current::time::Now();
+      // auto const ts = current::FormatDateTime(TS, "-%Y%m%d-%H");
+      LOG_IMPL("LOGGER WITH NO BASE DIR SET:\t" + s);
+    }
+  }
+#undef LOG_IMPL
 };
 
 struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
   struct InnerSingletonImpl final {
     std::atomic_bool initialized;
-    std::string base_path;
+    Optional<std::string> base_path;
     std::unordered_map<std::string, std::unique_ptr<C5T_LOGGER_Impl>> per_file_loggers;
     InnerSingletonImpl() : initialized(false) {}
   };
@@ -132,15 +156,7 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
 
   ~C5T_LOGGER_SINGLETON_Impl() override {}
 
-  C5T_LOGGER_SINGLETON_Impl& InitializedSelfOrAbort() override {
-    if (!initialized_) {
-      ::perror("Was not `C5T_LOGGER_ACTIVATE()`-d, aborting.");
-      ::abort();
-    }
-    return *this;
-  }
-
-  void C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) override {
+  void SetLogsDir(std::string base_path) override {
     if (!inner_singleton_.MutableUse([&](InnerSingletonImpl& inner) {
           if (inner.initialized) {
             return false;
@@ -149,8 +165,8 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
           inner.base_path = std::move(base_path);
           return true;
         })) {
-      ::perror("Was not `C5T_LOGGER_ACTIVATE()`-d, aborting.");
-      ::abort();
+      // NOTE(dkorolev): Re-setting the logs path will not re-create already existing per-file logger instances.
+      std::cerr << "WARNING: Logs dir is set more than once." << std::endl;
     }
   }
 
@@ -186,10 +202,16 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
   }
 
   C5T_LOGGER_Impl& operator[](std::string const& log_file_name) override {
-    return InitializedSelfOrAbort().inner_singleton_.MutableUse([&](InnerSingletonImpl& inner) -> C5T_LOGGER_Impl& {
+    return inner_singleton_.MutableUse([&](InnerSingletonImpl& inner) -> C5T_LOGGER_Impl& {
       auto& placeholder = inner.per_file_loggers[log_file_name];
       if (!placeholder) {
-        placeholder = std::make_unique<C5T_LOGGER_Impl>(current::FileSystem::JoinPath(inner.base_path, log_file_name));
+        if (Exists(inner.base_path)) {
+          placeholder =
+              std::make_unique<C5T_LOGGER_Impl>(current::FileSystem::JoinPath(Value(inner.base_path), log_file_name));
+        } else {
+          // TODO(dkorolev): Two IMPLs, one for file one for no file.
+          placeholder = std::make_unique<C5T_LOGGER_Impl>(C5T_LOGGER_Impl_Stdout());
+        }
       }
       return *placeholder;
     });
@@ -199,7 +221,7 @@ struct C5T_LOGGER_SINGLETON_Impl final : C5T_LOGGER_SINGLETON_Interface {
 }  // namespace current::logger::impl
 
 // NOTE(dkorolev): This method is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
-current::logger::C5T_LOGGER_SINGLETON_Interface& C5T_LOGGER_CREATE_SINGLETON() {
+current::logger::C5T_LOGGER_SINGLETON_Interface& current::logger::C5T_LOGGER_CREATE_SINGLETON() {
   return current::Singleton<current::logger::C5T_LOGGER_SINGLETON_Holder>().Use(
       current::Singleton<current::logger::impl::C5T_LOGGER_SINGLETON_Impl>());
 }

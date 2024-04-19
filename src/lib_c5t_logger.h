@@ -45,9 +45,7 @@ struct C5T_LOGGER_Interface {
 struct C5T_LOGGER_SINGLETON_Interface {
   virtual ~C5T_LOGGER_SINGLETON_Interface() = default;
 
-  virtual C5T_LOGGER_SINGLETON_Interface& InitializedSelfOrAbort() = 0;
-
-  virtual void C5T_LOGGER_ACTIVATE_IMPL(std::string base_path) = 0;
+  virtual void SetLogsDir(std::string base_path) = 0;
   virtual void C5T_LOGGER_LIST_Impl(
       std::function<void(std::string const& name, std::string const& latest_file)> cb) const = 0;
   virtual void C5T_LOGGER_FIND_Impl(std::string const& key,
@@ -57,6 +55,9 @@ struct C5T_LOGGER_SINGLETON_Interface {
   virtual C5T_LOGGER_Interface& operator[](std::string const& log_file_name) = 0;
 };
 
+// NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
+C5T_LOGGER_SINGLETON_Interface& C5T_LOGGER_CREATE_SINGLETON();
+
 struct C5T_LOGGER_SINGLETON_Holder final {
   C5T_LOGGER_SINGLETON_Interface* ptr = nullptr;
   C5T_LOGGER_SINGLETON_Interface& Use(C5T_LOGGER_SINGLETON_Interface& impl) {
@@ -65,27 +66,23 @@ struct C5T_LOGGER_SINGLETON_Holder final {
   }
   C5T_LOGGER_SINGLETON_Interface& Val() {
     if (ptr == nullptr) {
-      // TODO(dkorolev): Use some default one, right?
-      ::abort();
+      return C5T_LOGGER_CREATE_SINGLETON();
     }
     return *ptr;
   }
 };
 
 inline C5T_LOGGER_SINGLETON_Interface& C5T_LOGGER_INSTANCE() {
-  return current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Val().InitializedSelfOrAbort();
+  return current::Singleton<C5T_LOGGER_SINGLETON_Holder>().Val();
 }
 
 }  // namespace current::logger
-
-// NOTE(dkorolev): This is deliberately not "pimpl", since it's not to be used from `dlib_*.cc` sources!
-current::logger::C5T_LOGGER_SINGLETON_Interface& C5T_LOGGER_CREATE_SINGLETON();
 
 inline void C5T_LOGGER_USE(current::logger::C5T_LOGGER_SINGLETON_Interface& impl) {
   current::Singleton<current::logger::C5T_LOGGER_SINGLETON_Holder>().Use(impl);
 }
 
-#define C5T_LOGGER_ACTIVATE(...) C5T_LOGGER_CREATE_SINGLETON().C5T_LOGGER_ACTIVATE_IMPL(__VA_ARGS__)
+inline void C5T_LOGGER_SET_LOGS_DIR(std::string dir) { current::logger::C5T_LOGGER_CREATE_SINGLETON().SetLogsDir(dir); }
 
 #define C5T_LOGGER_LIST(cb) current::logger::C5T_LOGGER_INSTANCE().C5T_LOGGER_LIST_Impl(cb)
 #define C5T_LOGGER_FIND(key, cb_found, cb_notfound) \

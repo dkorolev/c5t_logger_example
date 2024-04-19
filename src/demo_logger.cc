@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     return argv0[0] == current::FileSystem::GetPathSeparator() ? "/" + res : res;
   }();
 
-  C5T_LOGGER_ACTIVATE(bin_path);
+  C5T_LOGGER_SET_LOGS_DIR(bin_path);
 
   C5T_LOGGER("demo.log") << "this is the demo, starting";
   C5T_LOGGER_LIST([](std::string const& name, std::string const& filename) {
